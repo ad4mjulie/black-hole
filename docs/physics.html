@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Black Hole — Physics</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body{font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;line-height:1.6;color:#eaeef6;background:#0b0d10;padding:40px}
+    .container{max-width:900px;margin:0 auto;background:rgba(255,255,255,0.02);padding:28px;border-radius:12px;box-shadow:0 6px 30px rgba(0,0,0,0.6)}
+    h1,h2{color:#fff;margin-top:0}
+    p, li{color:#d7dbe2}
+    pre{background:#071014;padding:12px;border-radius:8px;overflow:auto;color:#cfe8ff}
+    code{background:rgba(255,255,255,0.02);padding:2px 6px;border-radius:4px}
+    a{color:#9ad0ff}
+    footer{margin-top:20px;font-size:0.9rem;color:#96a0b3}
+    .refs li{margin-bottom:6px}
+  </style>
+  <!-- MathJax for beautiful equations -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>Physics</h1>
+
+    <h2>Ray paths and gravitational lensing</h2>
+
+    <p>
+      As usual in raytracing, each sample (pixel) in the image corresponds to a path starting from the position
+      <span class="math">\(p_0 = (x_0, y_0, z_0)\)</span> of the camera, initially travelling in a direction
+      <span class="math">\(d_0 \in \mathbb{R}^3\)</span> specified by the camera coordinate system. The path represents photons arriving to the camera from that direction. Instead of traveling in straight lines until hitting an object, the paths solve the photonic geodesic equation in the Schwarzschild space-time, which in certain units and spherical coordinates \((t,r,\theta,\varphi)\) takes the form (cf. [1, §4.2.1])
+    </p>
+
+    <p class="math">\[ ds^2 = \left(1-\frac{1}{r}\right)dt^2 + \left(1-\frac{1}{r}\right)^{-1}dr^2 - r^2\left(d\theta^2 + \sin^2\theta\,d\varphi^2\right) = 0. \]</p>
+
+    <p>
+      Without loss of generality, one can fix \(\theta = \frac{\pi}{2}\) and, even though not very obviously (see, e.g., [3] and [2]), this gives the ordinary differential equation
+    </p>
+
+    <p class="math">\[ u''(\varphi) = -u(\varphi)\left(1 - \tfrac{3}{2}u^2(\varphi)\right), \]</p>
+
+    <p>for \(u := 1/r\). To solve it in the raytracer, the following initial conditions are used:</p>
+
+    <p class="math">\[ u(0) = \frac{1}{\lVert p_0 \rVert}, \qquad u'(0) = -u(0)\frac{d_0\cdot n}{d_0\cdot t}, \]</p>
+
+    <p>where</p>
+
+    <p class="math">\[ n = \frac{p_0}{\lVert p_0\rVert}, \qquad t = \frac{(n\times d_0)\times n}{\lVert (n\times d_0)\times n\rVert}. \]</p>
+
+    <p>These vectors span the plane in which the ray travels.</p>
+
+    <p>
+      Equation above is integrated using the Leapfrog method until either a maximum number of steps \(N\) is reached or \(u_j + \Delta u_j < 0\), which signals that the ray escapes at an angle \(\varphi\in(\varphi_j,\varphi_j+\Delta\varphi_j)\). Given \(\varphi\) and \(u\), the corresponding spatial coordinates \(p=(x,y,z)\) can be computed from the basis above as
+    </p>
+
+    <p class="math">\[ p = \frac{n\cos\varphi + t\sin\varphi}{u}. \]</p>
+
+    <p>
+      The Schwarzschild time coordinate \(t\) is resolved by amending the numerical integration with
+    </p>
+
+    <p class="math">\[ t'(\varphi) = -\sqrt{(u')^2 + u^2(1-u)}\ /\ \bigl(u^2(1-u)\bigr), \]</p>
+
+    <p>
+      which is needed to compute light travel times for simulating apparent positions of moving objects. In order to do the integration in a visually accurate way, the step size \(\Delta\varphi_j\) is varied using an ad hoc formula, in addition to using the classical approximation \(dt^2\approx dx^2+dy^2+dz^2\) at large distances \(r\) from the black hole.
+    </p>
+
+    <h2>Observer motion and relativistic aberration</h2>
+
+    <p>
+      When the observer is moving with velocity \(v\) with respect to the Schwarzschild coordinate system, the ray directions \(d\) in the coordinate system of the observer (the camera coordinate system) are transformed by relativistic aberration, corresponding to the Lorentz velocity transformation:
+    </p>
+
+    <p class="math">\[ d_0 = \frac{1}{1+v d_{\|}}\Bigl( (d_{\|}+v)v_0 + \frac{1}{\gamma}d_{\perp} \Bigr), \]</p>
+
+    <p>
+      where \(v = v_0 v\), \(d_{\|}=v_0\cdot d\), \(d_{\perp}=d-d_{\|}\) and
+    </p>
+
+    <p class="math">\[ \gamma = \frac{1}{\sqrt{1-v^2}}. \]</p>
+
+    <h2>Circular orbits</h2>
+
+    <p>
+      The observer (unless stationary) and the planet both move on circular orbits with angular velocities given by [2]:
+    </p>
+
+    <p class="math">\[ \frac{d\varphi}{dt} = \frac{1}{r\sqrt{2(r-1)}}. \]</p>
+
+    <p>
+      On such orbits, the time dilation of the observer relative to the planet is computed by updating the Schwarzschild \(t\)-coordinate as
+    </p>
+
+    <p class="math">\[ \Delta t = \sqrt{ (\Delta t_0)^2(1-v^2)\over 1-\tfrac{1}{r} } , \]</p>
+
+    <p>where \(\Delta t_0\) is the elapsed wall clock time between consecutive animation frames and \(v=r\,d\varphi/dt\).</p>
+
+    <p>
+      When computing intersections between the planet and light paths, the motion of the planet has to be taken into account. Within the ODE integration steps, a ray-sphere intersection model can be used after mapping the ray to the moving coordinate system of the planet using a Lorentz velocity transformation.
+    </p>
+
+    <h2>Doppler shift and beaming</h2>
+
+    <p>
+      The Doppler factor for light arriving to the observer from direction \(d\), emitted by a source moving at velocity \(v\) is (see [1, §1.7]):
+    </p>
+
+    <p class="math">\[ \delta = \gamma(1 + d\cdot v). \]</p>
+
+    <p>
+      The Doppler factor for a ray path connecting a moving light source and a moving observer can be computed as
+    </p>
+
+    <p class="math">\[ \delta = \delta_o\,\delta_s = \frac{\gamma_o\gamma_s(1 - d_o\cdot v_o)(1 + d_s\cdot v_s)}{1} , \]</p>
+
+    <p>
+      where \(d_o\) and \(d_s\) are the initial and final (at intersection with the light source) photon directions on the ray path. The velocities \(v_o\) and \(v_s\) of the observer and the source can be determined by the circular orbit relation above. All of these are given in the ‘stationary’ Schwarzschild coordinate system. For the accretion disk, the velocity \(v_s\) is computed assuming the disk consists of glowing matter moving in circular orbits given by the formula above.
+    </p>
+
+    <p>
+      The wavelengths of the emitted and observed light are related by \(\lambda_o = \delta\,\lambda_s\) and intensities by \(I(\lambda_o)=\delta^{-3}I(\lambda_s)\) [1]. The change in intensity is called relativistic beaming and the change in wavelength is Doppler shift, which is also commonly referred to as redshift (when \(\delta>1\)) or blueshift (when \(\delta<1\)).
+    </p>
+
+    <p>
+      The perceived (RGB) colors corresponding to any fixed spectrum \(I\) can be precomputed in a one-dimensional lookup table (texture) as a function of the Doppler factor. This is done by integrating the shifted spectra with respect to the standard CIE color sensitivity measures [4]. The spectra used for the colors in this simulation are the black-body spectrum
+    </p>
+
+    <p class="math">\[ I(\lambda) \propto \frac{2hc^2}{\lambda^5}\frac{1}{e^{\frac{hc}{\lambda k_B T}} - 1} \]</p>
+
+    <p>and hydrogen-\(\alpha\):</p>
+
+    <p class="math">\[ I(\lambda) \propto \delta^{6.56}\,2.8\,\mathrm{nm}(\lambda). \]</p>
+
+    <h2>References</h2>
+    <ul class="refs">
+      <li>[1] Jeremy Goodman, <em>Topics in High-Energy Astrophysics</em>. <a href="http://www.astro.princeton.edu/~jeremy/heap.pdf" target="_blank">http://www.astro.princeton.edu/~jeremy/heap.pdf</a></li>
+      <li>[2] Riccardo Antonelli, <em>Visualizing a Black Hole</em>. <a href="http://spiro.fisica.unipd.it/~antonell/schwarzschild/" target="_blank">http://spiro.fisica.unipd.it/~antonell/schwarzschild/</a></li>
+      <li>[3] Wikipedia, <em>Schwarzschild Geodesics</em>. <a href="https://en.wikipedia.org/wiki/Schwarzschild_geodesics" target="_blank">https://en.wikipedia.org/wiki/Schwarzschild_geodesics</a></li>
+      <li>[4] Munsell Color Science Laboratory, CIE data. <a href="http://www.cis.rit.edu/research/mcsl2/online/cie.php" target="_blank">http://www.cis.rit.edu/research/mcsl2/online/cie.php</a></li>
+    </ul>
+
+  </div>
+</body>
+</html>
